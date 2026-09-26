@@ -1,0 +1,13 @@
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+
+# XFCE's session/settings daemon (xfconfd) needs a real XDG_RUNTIME_DIR;
+# without one, xfdesktop silently fails to draw icons/wallpaper/desktop menu.
+export XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+xrdb "$HOME/.Xresources" 2>/dev/null
+
+exec startxfce4

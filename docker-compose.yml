@@ -1,0 +1,118 @@
+########################################################################
+# devstack — docker-compose.yml
+#
+# Starting point: the "linux" desktop machine only. mysql, nginx, node,
+# and redis folders are provisioned and stubbed below (commented) so the
+# stack can grow into a full multi-container dev environment without
+# restructuring anything later.
+########################################################################
+
+networks:
+  devstack:
+    name: ${NETWORK_NAME}
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${NETWORK_SUBNET}
+
+services:
+
+  # ------------------------------------------------------------------
+  # linux — main desktop machine (XFCE, browser + VNC access, VS Code)
+  # ------------------------------------------------------------------
+  linux:
+    build:
+      context: ./linux
+      args:
+        DESKTOP_USER: ${DESKTOP_USER}
+        DESKTOP_UID: ${DESKTOP_UID}
+        DESKTOP_GID: ${DESKTOP_GID}
+    container_name: ${LINUX_HOSTNAME}
+    hostname: ${LINUX_HOSTNAME}
+    env_file: .env
+    networks:
+      - devstack
+    ports:
+      - "${LINUX_NOVNC_PORT}:6901"   # browser: http://localhost:${LINUX_NOVNC_PORT}/vnc.html
+      - "${LINUX_VNC_PORT}:5901"     # native VNC client
+    volumes:
+      - ${SITES_PATH}:/var/www
+      - ${LOGS_PATH}:/var/log/devstack
+      - ${DATA_PATH}:/data
+    shm_size: "2gb"
+    restart: unless-stopped
+    # --------------------------------------------------------------
+    # GPU acceleration (optional).
+    # Requires: NVIDIA driver + NVIDIA Container Toolkit on the HOST,
+    # and ENABLE_GPU=true in .env. Uncomment the block below to request
+    # the GPU reservation. See README.md -> "GPU acceleration" for the
+    # VirtualGL usage pattern (`vglrun <app>`) once this is enabled.
+    # --------------------------------------------------------------
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    #   - NVIDIA_DRIVER_CAPABILITIES=all
+
+  # ------------------------------------------------------------------
+  # Future services — folders are provisioned (./mysql, ./nginx, ./node,
+  # ./redis). Uncomment and flesh out as the stack grows.
+  # ------------------------------------------------------------------
+
+  # mysql:
+  #   image: mysql:8.4
+  #   container_name: ${COMPOSE_PROJECT_NAME}_mysql
+  #   env_file: .env
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
+  #     MYSQL_USER: ${MYSQL_USER}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  #   networks: [devstack]
+  #   ports:
+  #     - "${MYSQL_PORT}:3306"
+  #   volumes:
+  #     - ${MYSQL_PATH}:/var/lib/mysql
+  #     - ${LOGS_PATH}:/var/log/mysql
+  #   restart: unless-stopped
+
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ${COMPOSE_PROJECT_NAME}_redis
+  #   env_file: .env
+  #   networks: [devstack]
+  #   ports:
+  #     - "${REDIS_PORT}:6379"
+  #   volumes:
+  #     - ${DATA_PATH}/redis:/data
+  #   restart: unless-stopped
+
+  # node:
+  #   build: ./node
+  #   container_name: ${COMPOSE_PROJECT_NAME}_node
+  #   env_file: .env
+  #   networks: [devstack]
+  #   ports:
+  #     - "${NODE_PORT}:3000"
+  #   volumes:
+  #     - ${SITES_PATH}:/var/www
+  #     - ${LOGS_PATH}:/var/log/node
+  #   restart: unless-stopped
+
+  # nginx:
+  #   build: ./nginx
+  #   container_name: ${COMPOSE_PROJECT_NAME}_nginx
+  #   env_file: .env
+  #   networks: [devstack]
+  #   ports:
+  #     - "${NGINX_HTTP_PORT}:80"
+  #     - "${NGINX_HTTPS_PORT}:443"
+  #   volumes:
+  #     - ${SITES_PATH}:/var/www
+  #     - ${LOGS_PATH}:/var/log/nginx
+  #   restart: unless-stopped

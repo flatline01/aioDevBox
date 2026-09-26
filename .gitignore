@@ -1,0 +1,12 @@
+# Runtime data / logs (folders are kept via .gitkeep, contents are not)
+mysql/*
+!mysql/.gitkeep
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+sites/*
+!sites/.gitkeep
+
+# Secrets — keep a template instead if you commit this repo
+.env
