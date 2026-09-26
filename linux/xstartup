@@ -8,6 +8,18 @@ export XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+# Explicitly start (and verify) a D-Bus session bus rather than relying
+# on startxfce4 to spawn one implicitly — if this fails, it'll show up
+# clearly in this log instead of surfacing later as an XFCE failsafe
+# dialog with no real explanation.
+eval "$(dbus-launch --sh-syntax --exit-with-session)"
+export DBUS_SESSION_BUS_ADDRESS
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    echo "[xstartup] ERROR: dbus-launch did not produce a session bus address" >&2
+else
+    echo "[xstartup] D-Bus session bus: $DBUS_SESSION_BUS_ADDRESS" >&2
+fi
+
 xrdb "$HOME/.Xresources" 2>/dev/null
 
 exec startxfce4
