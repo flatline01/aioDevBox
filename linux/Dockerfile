@@ -30,12 +30,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         sudo curl wget gnupg2 ca-certificates apt-transport-https \
         software-properties-common lsb-release \
         xfce4 xfce4-goodies xfce4-terminal \
+        elementary-xfce-icon-theme adwaita-icon-theme hicolor-icon-theme \
+        librsvg2-common shared-mime-info \
         tigervnc-standalone-server tigervnc-common tigervnc-tools \
         novnc websockify \
         dbus-x11 x11-xserver-utils xfonts-base \
         mesa-utils libgl1-mesa-dri libglx-mesa0 vulkan-tools \
         libglvnd0 libgl1 libglx0 libegl1 libgles2 \
-        firefox \
         git vim nano htop unzip zip build-essential \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
@@ -62,6 +63,31 @@ RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor 
     && rm -rf /var/lib/apt/lists/* /usr/share/keyrings/microsoft.gpg
 
 # ------------------------------------------------------------------
+# Firefox — the "firefox" apt package on Ubuntu 22.04+ is just a snap
+# stub that doesn't work in containers (no snapd/systemd), so pull the
+# real .deb build from Mozilla's official apt repo instead.
+# ------------------------------------------------------------------
+RUN install -d -m 0755 /etc/apt/keyrings \
+    && wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg \
+        > /etc/apt/keyrings/packages.mozilla.org.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+        > /etc/apt/sources.list.d/mozilla.list \
+    && printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+        > /etc/apt/preferences.d/mozilla \
+    && apt-get update && apt-get install -y --no-install-recommends firefox \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------
+# Google Chrome — no apt repo installed by default; fetch Google's
+# official .deb directly and let apt resolve its dependencies.
+# ------------------------------------------------------------------
+RUN wget -q -O /tmp/chrome.deb \
+        https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get update && apt-get install -y --no-install-recommends /tmp/chrome.deb \
+    && rm -f /tmp/chrome.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------
 # VirtualGL — lets GPU-bound apps be launched with `vglrun <app>` so
 # they render using the host GPU (when passed through) instead of
 # software rendering. Safe to have installed even with no GPU.
@@ -82,6 +108,26 @@ RUN groupadd -g ${DESKTOP_GID} ${DESKTOP_USER} \
     && echo "${DESKTOP_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DESKTOP_USER} \
     && mkdir -p /var/log/devstack /data /var/www \
     && chown -R ${DESKTOP_USER}:${DESKTOP_USER} /var/log/devstack /data /var/www
+
+# ------------------------------------------------------------------
+# nvm + Node.js — nvm lives in $HOME/.nvm and wires itself into
+# ~/.bashrc, so it has to install as the desktop user, not root. The
+# default LTS Node it installs is then symlinked onto the system PATH
+# so `node`/`npm`/`npx` also work outside an interactive shell (VS
+# Code tasks, desktop launchers) without sourcing nvm first.
+# ------------------------------------------------------------------
+ENV NVM_DIR=/home/${DESKTOP_USER}/.nvm
+
+RUN su - ${DESKTOP_USER} -c '\
+        wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+        && . "$HOME/.nvm/nvm.sh" \
+        && nvm install --lts \
+        && nvm alias default node \
+    '
+
+RUN ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/node /usr/local/bin/node \
+    && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npm /usr/local/bin/npm \
+    && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npx /usr/local/bin/npx
 
 # ------------------------------------------------------------------
 # VNC xstartup — launches the XFCE session inside the VNC display
