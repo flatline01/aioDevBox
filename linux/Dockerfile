@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common lsb-release \
         xfce4 xfce4-goodies xfce4-terminal \
         elementary-xfce-icon-theme adwaita-icon-theme hicolor-icon-theme \
-        librsvg2-common shared-mime-info \
+        librsvg2-common shared-mime-info at-spi2-core \
         tigervnc-standalone-server tigervnc-common tigervnc-tools \
         novnc websockify \
         dbus-x11 x11-xserver-utils xfonts-base \
@@ -192,6 +192,20 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY startup.sh /opt/startup.sh
 COPY entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/startup.sh /opt/entrypoint.sh
+
+# ------------------------------------------------------------------
+# Final ownership pass. ENV HOME=/home/${DESKTOP_USER} is set globally
+# near the top of this file, which means every RUN step above that
+# still executes as root (apt/package post-install scripts for
+# Chrome, Firefox, Composer, VirtualGL, etc.) also had HOME pointed at
+# the desktop user's home directory. Any of those that respect $HOME
+# (common for GTK/desktop package cache dirs) could have written into
+# it while running as root, leaving stray root-owned files behind —
+# which is exactly what broke xfconfd (couldn't write its config dir).
+# Re-assert ownership of the whole home directory now that every
+# install is done, so nothing upstream of this line can leave it in a
+# broken state.
+RUN chown -R ${DESKTOP_USER}:${DESKTOP_USER} /home/${DESKTOP_USER}
 
 EXPOSE 5901 6901
 

@@ -2,6 +2,20 @@
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 
+# Pin HOME explicitly, BEFORE dbus-launch runs. dbus-daemon snapshots
+# its launch environment as the "activation environment" for any
+# service it starts on demand (like xfconfd) — it does NOT pick up
+# later `export`s. If HOME isn't reliably set at this exact point
+# (TigerVNC's session wrapper doesn't guarantee it), xfconfd gets
+# activated later with no HOME, can't resolve $HOME/.config, and dies
+# with "Unable to create configuration directory (null)" — which is
+# exactly what breaks the whole XFCE session (surfaces as the
+# "failsafe session" dialog, since xfce4-session depends on xfconfd).
+export HOME="/home/$(id -un)"
+export XDG_CONFIG_HOME="$HOME/.config"
+mkdir -p "$XDG_CONFIG_HOME"
+echo "[xstartup] HOME=$HOME XDG_CONFIG_HOME=$XDG_CONFIG_HOME" >&2
+
 # XFCE's session/settings daemon (xfconfd) needs a real XDG_RUNTIME_DIR;
 # without one, xfdesktop silently fails to draw icons/wallpaper/desktop menu.
 export XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
@@ -19,6 +33,14 @@ if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
 else
     echo "[xstartup] D-Bus session bus: $DBUS_SESSION_BUS_ADDRESS" >&2
 fi
+
+# Sync HOME (and everything else current) into the activation
+# environment dbus-daemon already captured, as a second safety net.
+# (No --systemd flag — there's no systemd user manager in this container.)
+export XDG_CONFIG_DIRS="/etc/xdg"
+export XDG_DATA_DIRS="/usr/local/share:/usr/share"
+echo "[xstartup] XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS XDG_DATA_DIRS=$XDG_DATA_DIRS" >&2
+dbus-update-activation-environment DISPLAY XDG_RUNTIME_DIR HOME XDG_CONFIG_HOME XDG_CONFIG_DIRS XDG_DATA_DIRS 2>/dev/null || true
 
 xrdb "$HOME/.Xresources" 2>/dev/null
 
