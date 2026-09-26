@@ -110,6 +110,49 @@ RUN groupadd -g ${DESKTOP_GID} ${DESKTOP_USER} \
     && chown -R ${DESKTOP_USER}:${DESKTOP_USER} /var/log/devstack /data /var/www
 
 # ------------------------------------------------------------------
+# PHP 8 (FPM + CLI) + Composer
+#
+# - A single php.ini (bind-mounted from the host over /etc/php/8.1/php.ini
+#   — see docker-compose.yml) governs both SAPIs: the packages' own
+#   cli/php.ini and fpm/php.ini are replaced with symlinks to it.
+# - php-fpm listens on 0.0.0.0:9000 (not the default unix socket) so the
+#   nginx container can reach it at linux:9000 over the devstack network.
+# - The fpm pool runs as ${DESKTOP_USER} instead of www-data, matching
+#   the ownership of the bind-mounted /var/www.
+# ------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        php8.1 php8.1-fpm php8.1-cli php8.1-common \
+        php8.1-mysql php8.1-curl php8.1-mbstring php8.1-xml \
+        php8.1-zip php8.1-gd php8.1-bcmath php8.1-intl php8.1-opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rm -f /etc/php/8.1/cli/php.ini /etc/php/8.1/fpm/php.ini \
+    && ln -s /etc/php/8.1/php.ini /etc/php/8.1/cli/php.ini \
+    && ln -s /etc/php/8.1/php.ini /etc/php/8.1/fpm/php.ini
+
+RUN sed -i \
+        -e 's#^listen = .*#listen = 0.0.0.0:9000#' \
+        -e '/^listen\.owner/d' -e '/^listen\.group/d' -e '/^listen\.mode/d' \
+        -e "s#^user = .*#user = ${DESKTOP_USER}#" \
+        -e "s#^group = .*#group = ${DESKTOP_USER}#" \
+        /etc/php/8.1/fpm/pool.d/www.conf
+
+# /run/php is normally created by a systemd tmpfiles rule on package
+# install; there's no systemd here, so php-fpm's pidfile directory
+# never gets created and FPM fails to start. Create it explicitly.
+RUN mkdir -p /run/php
+
+# Composer, with the official signature verification step
+RUN EXPECTED_SIGNATURE="$(wget -qO- https://composer.github.io/installer.sig)" \
+    && php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+    && ACTUAL_SIGNATURE="$(php -r "echo hash_file('sha384', 'composer-setup.php');")" \
+    && if [ "${EXPECTED_SIGNATURE}" != "${ACTUAL_SIGNATURE}" ]; then \
+        echo "ERROR: composer installer signature mismatch" >&2 && rm composer-setup.php && exit 1; \
+       fi \
+    && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
+    && rm composer-setup.php
+
+# ------------------------------------------------------------------
 # nvm + Node.js — nvm lives in $HOME/.nvm and wires itself into
 # ~/.bashrc, so it has to install as the desktop user, not root. The
 # default LTS Node it installs is then symlinked onto the system PATH
