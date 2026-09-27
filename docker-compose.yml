@@ -15,6 +15,11 @@ networks:
       config:
         - subnet: ${NETWORK_SUBNET}
 
+volumes:
+  linux_config:
+  linux_mozilla:
+  linux_vscode:
+
 services:
 
   # ------------------------------------------------------------------
@@ -32,6 +37,9 @@ services:
     env_file: .env
     networks:
       - devstack
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "${LINUX_NOVNC_PORT}:6901"   # browser: http://localhost:${LINUX_NOVNC_PORT}/vnc.html
       - "${LINUX_VNC_PORT}:5901"     # native VNC client
@@ -45,6 +53,18 @@ services:
       - ${LOGS_PATH}:/var/log/devstack
       - ${DATA_PATH}:/data
       - ./linux/php/php.ini:/etc/php/8.1/php.ini
+      # Persist desktop/app settings across container recreation. Scoped
+      # to these specific dirs (not all of /home/${DESKTOP_USER}) so that
+      # ~/.vnc/xstartup and other image-managed files always come fresh
+      # from the image on rebuild, instead of getting frozen at whatever
+      # they were the first time the volume was populated.
+      - linux_config:/home/${DESKTOP_USER}/.config    # XFCE settings, Chrome profile, VS Code settings
+      - linux_mozilla:/home/${DESKTOP_USER}/.mozilla   # Firefox profile
+      - linux_vscode:/home/${DESKTOP_USER}/.vscode     # VS Code installed extensions
+      # Bind-mounted (not named volumes) so these are directly editable
+      # from the host — see linux/persist/.
+      - ./linux/persist/bashrc:/home/${DESKTOP_USER}/.bashrc
+      - ./linux/persist/Desktop:/home/${DESKTOP_USER}/Desktop
     shm_size: "2gb"
     restart: unless-stopped
     # --------------------------------------------------------------
@@ -77,7 +97,10 @@ services:
     networks:
       - devstack
     depends_on:
-      - linux
+      linux:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     ports:
       - "${NGINX_HTTP_PORT}:80"
       - "${NGINX_HTTPS_PORT}:443"
@@ -90,26 +113,39 @@ services:
     restart: unless-stopped
 
   # ------------------------------------------------------------------
-  # Future services — folders are provisioned (./mysql, ./node). Uncomment
-  # and flesh out as the stack grows.
+  # mysql — persists to ./mysql, auto-imports any .sql/.sql.gz/.sh dumps
+  # found in ./data on first-ever init (empty-volume behavior built into
+  # the official image — see README.md for what that means in practice).
   # ------------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    container_name: ${COMPOSE_PROJECT_NAME}_mysql
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      - devstack
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - ${MYSQL_PATH}:/var/lib/mysql
+      - ${DATA_PATH}:/docker-entrypoint-initdb.d
+      - ${LOGS_PATH}:/var/log/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
 
-  # mysql:
-  #   image: mysql:8.4
-  #   container_name: ${COMPOSE_PROJECT_NAME}_mysql
-  #   env_file: .env
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
-  #     MYSQL_USER: ${MYSQL_USER}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-  #   networks: [devstack]
-  #   ports:
-  #     - "${MYSQL_PORT}:3306"
-  #   volumes:
-  #     - ${MYSQL_PATH}:/var/lib/mysql
-  #     - ${LOGS_PATH}:/var/log/mysql
-  #   restart: unless-stopped
+  # ------------------------------------------------------------------
+  # Future services — folders are provisioned (./node). Uncomment and
+  # flesh out as the stack grows.
+  # ------------------------------------------------------------------
 
   # redis:
   #   image: redis:7-alpine
@@ -127,6 +163,9 @@ services:
   #   container_name: ${COMPOSE_PROJECT_NAME}_node
   #   env_file: .env
   #   networks: [devstack]
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
   #   ports:
   #     - "${NODE_PORT}:3000"
   #   volumes:

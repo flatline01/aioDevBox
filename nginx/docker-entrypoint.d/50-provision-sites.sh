@@ -90,6 +90,9 @@ server {
     }
 }
 EOF
+
+echo "[sites]     Site is running a self signed cert - you need to accept it in your browser."
+echo "[sites]     Remember to add $tld at 127.0.0.1 to your hosts file."
 done
 
 echo "[sites] Done."

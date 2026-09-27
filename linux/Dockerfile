@@ -152,6 +152,16 @@ RUN EXPECTED_SIGNATURE="$(wget -qO- https://composer.github.io/installer.sig)" \
     && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
     && rm composer-setup.php
 
+# WP-CLI — for managing WordPress installs from the command line.
+# default-mysql-client is included so `wp db import/export/cli` (which
+# shell out to mysql/mysqldump) work against the mysql container.
+RUN apt-get update && apt-get install -y --no-install-recommends default-mysql-client less \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sSL -o /usr/local/bin/wp \
+        https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    && chmod +x /usr/local/bin/wp \
+    && wp --info --allow-root
+
 # ------------------------------------------------------------------
 # nvm + Node.js — nvm lives in $HOME/.nvm and wires itself into
 # ~/.bashrc, so it has to install as the desktop user, not root. The
