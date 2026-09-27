@@ -1,0 +1,11 @@
+{
+  "sites": {
+    "mysite": {
+      "name": "My Site",
+      "directory": "/var/www/my-site",
+      "tld": "mysite.local",
+      "repo":"",
+      "type":"single"
+    }
+  }
+}

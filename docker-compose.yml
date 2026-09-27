@@ -35,10 +35,16 @@ services:
     ports:
       - "${LINUX_NOVNC_PORT}:6901"   # browser: http://localhost:${LINUX_NOVNC_PORT}/vnc.html
       - "${LINUX_VNC_PORT}:5901"     # native VNC client
+      # PHP-FPM (port 9000) is intentionally NOT published here — it's
+      # reached by other containers over the devstack network at
+      # linux:9000 (see the nginx stub below). Add a "9000:9000" line
+      # here only if you also want it reachable directly from the host.
     volumes:
       - ${SITES_PATH}:/var/www
+      - ${SITES_JSON_PATH}:/sites.json:ro
       - ${LOGS_PATH}:/var/log/devstack
       - ${DATA_PATH}:/data
+      - ./linux/php/php.ini:/etc/php/8.1/php.ini
     shm_size: "2gb"
     restart: unless-stopped
     # --------------------------------------------------------------
@@ -60,8 +66,32 @@ services:
     #   - NVIDIA_DRIVER_CAPABILITIES=all
 
   # ------------------------------------------------------------------
-  # Future services — folders are provisioned (./mysql, ./nginx, ./node,
-  # ./redis). Uncomment and flesh out as the stack grows.
+  # nginx — routes any number of sites (defined in ../sites.json) to
+  # php-fpm on linux:9000, with an auto-provisioned self-signed cert
+  # per site domain.
+  # ------------------------------------------------------------------
+  nginx:
+    build: ./nginx
+    container_name: ${COMPOSE_PROJECT_NAME}_nginx
+    env_file: .env
+    networks:
+      - devstack
+    depends_on:
+      - linux
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
+    volumes:
+      - ${SITES_PATH}:/var/www:ro
+      - ${SITES_JSON_PATH}:/sites.json:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ${LOGS_PATH}:/var/log/nginx
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------
+  # Future services — folders are provisioned (./mysql, ./node). Uncomment
+  # and flesh out as the stack grows.
   # ------------------------------------------------------------------
 
   # mysql:
@@ -102,17 +132,4 @@ services:
   #   volumes:
   #     - ${SITES_PATH}:/var/www
   #     - ${LOGS_PATH}:/var/log/node
-  #   restart: unless-stopped
-
-  # nginx:
-  #   build: ./nginx
-  #   container_name: ${COMPOSE_PROJECT_NAME}_nginx
-  #   env_file: .env
-  #   networks: [devstack]
-  #   ports:
-  #     - "${NGINX_HTTP_PORT}:80"
-  #     - "${NGINX_HTTPS_PORT}:443"
-  #   volumes:
-  #     - ${SITES_PATH}:/var/www
-  #     - ${LOGS_PATH}:/var/log/nginx
   #   restart: unless-stopped

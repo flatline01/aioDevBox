@@ -1,0 +1,15 @@
+# Force LF line endings for anything that runs as a script or gets
+# parsed by a POSIX shell/interpreter inside a container — CRLF here
+# breaks shebang lines (the kernel looks for e.g. "/bin/bash\r", which
+# doesn't exist) even though the file looks completely normal in an
+# editor or in `cat`. This applies regardless of git's core.autocrlf
+# setting or what OS a given commit was made from.
+ 
+*.sh          text eol=lf
+xstartup      text eol=lf
+Dockerfile    text eol=lf
+*.conf        text eol=lf
+.env          text eol=lf
+docker-compose.yml text eol=lf
+*.json        text eol=lf
+ 

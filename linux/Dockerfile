@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dbus-x11 x11-xserver-utils xfonts-base \
         mesa-utils libgl1-mesa-dri libglx-mesa0 vulkan-tools \
         libglvnd0 libgl1 libglx0 libegl1 libgles2 \
-        git vim nano htop unzip zip build-essential \
+        git vim nano htop unzip zip build-essential jq \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
 
@@ -176,13 +176,20 @@ RUN ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/node /usr/local/bin/no
 # VNC xstartup — launches the XFCE session inside the VNC display
 # ------------------------------------------------------------------
 COPY xstartup /home/${DESKTOP_USER}/.vnc/xstartup
-RUN chmod +x /home/${DESKTOP_USER}/.vnc/xstartup \
+# Strip any CRLF line endings before anything else — a script saved with
+# Windows-style line endings breaks its own shebang (the kernel looks for
+# an interpreter literally named "/bin/bash\r", which doesn't exist, and
+# reports it as the script itself being missing). Doing this at build
+# time makes the image immune to how the file gets saved on disk.
+RUN sed -i 's/\r$//' /home/${DESKTOP_USER}/.vnc/xstartup \
+    && chmod +x /home/${DESKTOP_USER}/.vnc/xstartup \
     && chown -R ${DESKTOP_USER}:${DESKTOP_USER} /home/${DESKTOP_USER}/.vnc
 
 # ------------------------------------------------------------------
 # Supervisor config (manages Xvnc + websockify/noVNC)
 # ------------------------------------------------------------------
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN sed -i 's/\r$//' /etc/supervisor/conf.d/supervisord.conf
 
 # ------------------------------------------------------------------
 # One-time startup script + entrypoint that runs it exactly once
@@ -191,7 +198,8 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # ------------------------------------------------------------------
 COPY startup.sh /opt/startup.sh
 COPY entrypoint.sh /opt/entrypoint.sh
-RUN chmod +x /opt/startup.sh /opt/entrypoint.sh
+RUN sed -i 's/\r$//' /opt/startup.sh /opt/entrypoint.sh \
+    && chmod +x /opt/startup.sh /opt/entrypoint.sh
 
 # ------------------------------------------------------------------
 # Final ownership pass. ENV HOME=/home/${DESKTOP_USER} is set globally

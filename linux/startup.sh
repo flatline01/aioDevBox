@@ -14,6 +14,53 @@ set -e
 
 echo "[startup.sh] Running one-time provisioning..."
 
+# ------------------------------------------------------------------
+# Provision site folders from /sites.json (see docker-compose.yml for
+# the mount, and the project-root sites.json for the site registry —
+# same file nginx reads to generate vhosts). For each site: create its
+# directory under /var/www if missing, and drop a placeholder
+# index.html if the directory has no index.html or index.php yet, so
+# a freshly-added site isn't just a 404/empty-listing.
+# ------------------------------------------------------------------
+SITES_JSON="/sites.json"
+
+if [ -f "$SITES_JSON" ]; then
+    echo "[startup.sh] Provisioning site folders from sites.json..."
+    for key in $(jq -r '.sites | keys[]' "$SITES_JSON"); do
+        name=$(jq -r --arg k "$key" '.sites[$k].name' "$SITES_JSON")
+        directory=$(jq -r --arg k "$key" '.sites[$k].directory' "$SITES_JSON")
+
+        if [ -z "$directory" ] || [ "$directory" = "null" ]; then
+            echo "[startup.sh]   Skipping '$key' — missing directory in sites.json"
+            continue
+        fi
+
+        if [ ! -d "$directory" ]; then
+            echo "[startup.sh]   Creating $directory"
+            mkdir -p "$directory"
+        fi
+
+        if [ ! -f "$directory/index.html" ] && [ ! -f "$directory/index.php" ]; then
+            echo "[startup.sh]   Writing placeholder index.html for '$name'"
+            cat > "$directory/index.php" <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>$name</title>
+</head>
+<body>
+    <h1>$name</h1>
+    <?php phpinfo(); ?>
+</body>
+</html>
+HTML
+        fi
+    done
+else
+    echo "[startup.sh] No sites.json found at $SITES_JSON — skipping site provisioning."
+fi
+
 # Example: install a couple of useful VS Code extensions
 # sudo -u "${DESKTOP_USER}" code --install-extension ms-python.python
 # sudo -u "${DESKTOP_USER}" code --install-extension dbaeumer.vscode-eslint
