@@ -11,3 +11,4 @@ sites/*
 # Secrets — keep a template instead if you commit this repo
 .env
 nginx/ssl/*
+linux/persist/Desktop/*
