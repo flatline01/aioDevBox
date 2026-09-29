@@ -11,7 +11,7 @@
 
 FROM nginx:stable-alpine
 
-RUN apk add --no-cache openssl jq
+RUN apk add --no-cache openssl jq inotify-tools
 
 # Sensible default: refuse unmatched Host headers rather than falling
 # back to serving something unintended.
@@ -22,5 +22,6 @@ COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
 # custom ENTRYPOINT needed, which keeps the base image's own signal
 # handling/graceful shutdown behavior intact.
 COPY docker-entrypoint.d/50-provision-sites.sh /docker-entrypoint.d/50-provision-sites.sh
-RUN sed -i 's/\r$//' /docker-entrypoint.d/50-provision-sites.sh \
-    && chmod +x /docker-entrypoint.d/50-provision-sites.sh
+COPY docker-entrypoint.d/60-watch-and-reload.sh /docker-entrypoint.d/60-watch-and-reload.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/50-provision-sites.sh /docker-entrypoint.d/60-watch-and-reload.sh \
+    && chmod +x /docker-entrypoint.d/50-provision-sites.sh /docker-entrypoint.d/60-watch-and-reload.sh
