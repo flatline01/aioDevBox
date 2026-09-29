@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#ask user if they want to set up a new site
+#loop through sites.json and the folders in /var/www and make sure it doesnt exist
+# if exists, exit
+# else ask what kind of project - wordpress single, wordpress multi, node
+# if wordpress
+#   mysql create scheama
+#   composer create
+#   npm init
+#   git init
+#   wp cli
+#      create user
+#      multisite? set superadmin
+#      install MU plugins
+#         graphql
+#         querymonitor
+

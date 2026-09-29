@@ -22,6 +22,21 @@ mkdir -p /var/log/devstack /data
 chown -R "${DESKTOP_USER}:${DESKTOP_USER}" /var/log/devstack /data /var/www 2>/dev/null || true
 
 # ------------------------------------------------------------------
+# Named volumes (see docker-compose.yml) mounted over paths that don't
+# exist in the image get auto-created root-owned, which stops the
+# desktop user (and apps like VS Code) from writing to them. Re-assert
+# ownership of just the mount roots every boot — non-recursive, so it's
+# instant even once these fill up with browser/extension data, and it
+# repairs volumes that were already created root-owned.
+# ------------------------------------------------------------------
+for d in .config .mozilla .vscode; do
+    mkdir -p "${HOME_DIR}/${d}"
+    chown "${DESKTOP_USER}:${DESKTOP_USER}" "${HOME_DIR}/${d}"
+done
+mkdir -p "${HOME_DIR}/.vscode/extensions"
+chown "${DESKTOP_USER}:${DESKTOP_USER}" "${HOME_DIR}/.vscode/extensions"
+
+# ------------------------------------------------------------------
 # Run startup.sh exactly once ever (marker lives on the bind-mounted
 # /data volume so it survives `docker compose down` + recreation,
 # not just container restarts).

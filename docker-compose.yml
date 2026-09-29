@@ -49,6 +49,7 @@ services:
       # here only if you also want it reachable directly from the host.
     volumes:
       - ${SITES_PATH}:/var/www
+      - ./linux/scripts:/var/scripts
       - ${SITES_JSON_PATH}:/sites.json:ro
       - ${LOGS_PATH}:/var/log/devstack
       - ${DATA_PATH}:/data
@@ -140,6 +141,29 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------
+  # phpmyadmin — web UI for the mysql container. Official image, its own
+  # container; connects over the devstack network. Log in at
+  # http://localhost:${PHPMYADMIN_PORT} with the MYSQL_USER / MYSQL_PASSWORD
+  # (or root / MYSQL_ROOT_PASSWORD) values from .env.
+  # ------------------------------------------------------------------
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: ${COMPOSE_PROJECT_NAME}_phpmyadmin
+    env_file: .env
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    networks:
+      - devstack
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
     restart: unless-stopped
 
   # ------------------------------------------------------------------
