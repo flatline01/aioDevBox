@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dbus-x11 x11-xserver-utils xfonts-base \
         mesa-utils libgl1-mesa-dri libglx-mesa0 vulkan-tools \
         libglvnd0 libgl1 libglx0 libegl1 libgles2 \
-        git vim nano htop unzip zip build-essential jq \
+        git gh vim nano htop unzip zip build-essential jq \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
 
