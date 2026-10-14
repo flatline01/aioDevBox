@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dbus-x11 x11-xserver-utils xfonts-base \
         mesa-utils libgl1-mesa-dri libglx-mesa0 vulkan-tools \
         libglvnd0 libgl1 libglx0 libegl1 libgles2 \
-        git gh vim nano htop unzip zip build-essential jq \
+        git gh vim nano htop unzip zip build-essential jq dnsmasq \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
 
@@ -208,8 +208,9 @@ RUN sed -i 's/\r$//' /etc/supervisor/conf.d/supervisord.conf
 # ------------------------------------------------------------------
 COPY startup.sh /opt/startup.sh
 COPY entrypoint.sh /opt/entrypoint.sh
-RUN sed -i 's/\r$//' /opt/startup.sh /opt/entrypoint.sh \
-    && chmod +x /opt/startup.sh /opt/entrypoint.sh
+COPY dns-sync.sh /opt/dns-sync.sh
+RUN sed -i 's/\r$//' /opt/startup.sh /opt/entrypoint.sh /opt/dns-sync.sh \
+    && chmod +x /opt/startup.sh /opt/entrypoint.sh /opt/dns-sync.sh
 
 # ------------------------------------------------------------------
 # Final ownership pass. ENV HOME=/home/${DESKTOP_USER} is set globally
