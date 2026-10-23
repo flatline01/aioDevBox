@@ -88,6 +88,19 @@ RUN wget -q -O /tmp/chrome.deb \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
+# GitHub CLI (gh) — via GitHub's official apt repo. Auth itself is
+# configured at container startup from GH_USERNAME/GH_TOKEN in .env,
+# not here — see entrypoint.sh.
+# ------------------------------------------------------------------
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------
 # VirtualGL — lets GPU-bound apps be launched with `vglrun <app>` so
 # they render using the host GPU (when passed through) instead of
 # software rendering. Safe to have installed even with no GPU.
@@ -124,6 +137,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         php8.1 php8.1-fpm php8.1-cli php8.1-common \
         php8.1-mysql php8.1-curl php8.1-mbstring php8.1-xml \
         php8.1-zip php8.1-gd php8.1-bcmath php8.1-intl php8.1-opcache \
+        php-mongodb \
     && rm -rf /var/lib/apt/lists/*
 
 RUN rm -f /etc/php/8.1/cli/php.ini /etc/php/8.1/fpm/php.ini \
@@ -181,6 +195,18 @@ RUN su - ${DESKTOP_USER} -c '\
 RUN ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/node /usr/local/bin/node \
     && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npm /usr/local/bin/npm \
     && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npx /usr/local/bin/npx
+
+
+# ------------------------------------------------------------------
+# Bruno api tool - https://www.usebruno.com/downloads
+# ------------------------------------------------------------------
+RUN sudo mkdir -p /etc/apt/keyrings
+RUN sudo apt update && sudo apt install gpg curl
+RUN sudo gpg --list-keys
+RUN curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9FA6017ECABE0266" | gpg --dearmor | sudo tee /etc/apt/keyrings/bruno.gpg > /dev/null
+RUN sudo chmod 644 /etc/apt/keyrings/bruno.gpg
+RUN echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/bruno.gpg] http://debian.usebruno.com/ bruno stable" | sudo tee /etc/apt/sources.list.d/bruno.list
+RUN sudo apt update && sudo apt install bruno
 
 # ------------------------------------------------------------------
 # VNC xstartup — launches the XFCE session inside the VNC display

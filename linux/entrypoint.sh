@@ -37,6 +37,29 @@ mkdir -p "${HOME_DIR}/.vscode/extensions"
 chown "${DESKTOP_USER}:${DESKTOP_USER}" "${HOME_DIR}/.vscode/extensions"
 
 # ------------------------------------------------------------------
+# GitHub CLI auth (re-applied every boot, in case GH_TOKEN was
+# rotated) — no-op if GH_TOKEN isn't set in .env. Authenticates `gh`
+# itself, then `gh auth setup-git` wires git's own push/pull over
+# HTTPS to use that same token, so git doesn't need separate config.
+# The token is piped via stdin rather than put on a command line, so
+# it doesn't show up in `ps` output.
+# ------------------------------------------------------------------
+if [ -n "${GH_TOKEN:-}" ]; then
+    echo "[entrypoint] Configuring gh/git auth for GH_USERNAME=${GH_USERNAME:-<unset>}"
+    echo "${GH_TOKEN}" | su - "${DESKTOP_USER}" -c "gh auth login --with-token" \
+        && su - "${DESKTOP_USER}" -c "gh auth setup-git" \
+        || echo "[entrypoint] WARNING: gh auth login failed — check GH_TOKEN in .env"
+    if [ -n "${GH_USERNAME:-}" ]; then
+        su - "${DESKTOP_USER}" -c "git config --global user.name '${GH_USERNAME}'"
+    fi
+    if [ -n "${GH_EMAIL:-}" ]; then
+        su - "${DESKTOP_USER}" -c "git config --global user.email '${GH_EMAIL}'"
+    fi
+else
+    echo "[entrypoint] GH_TOKEN not set in .env — skipping gh/git auth"
+fi
+
+# ------------------------------------------------------------------
 # Run startup.sh exactly once ever (marker lives on the bind-mounted
 # /data volume so it survives `docker compose down` + recreation,
 # not just container restarts).
