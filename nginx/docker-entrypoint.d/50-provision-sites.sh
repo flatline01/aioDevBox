@@ -30,6 +30,13 @@ echo "[sites] Found $site_count site(s) in sites.json"
 for key in $(jq -r '.sites | keys[]' "$SITES_JSON"); do
     name=$(jq -r --arg k "$key" '.sites[$k].name' "$SITES_JSON")
     directory=$(jq -r --arg k "$key" '.sites[$k].directory' "$SITES_JSON")
+
+    webroot=$(jq -r --arg k "$key" '.sites[$k].webroot // ""' "$SITES_JSON")
+    if [[ -n "$webroot" ]]; then
+        directory="${directory}${webroot}"
+        echo "[sites]  * custom webroot: ${directory}"
+    fi
+    
     tld=$(jq -r --arg k "$key" '.sites[$k].tld' "$SITES_JSON")
 
     if [ -z "$directory" ] || [ "$directory" = "null" ] || [ -z "$tld" ] || [ "$tld" = "null" ]; then
@@ -91,8 +98,10 @@ server {
 }
 EOF
 
-echo "[sites]     Site is running a self signed cert - you need to accept it in your browser."
+
 echo "[sites]     Remember to add $tld at 127.0.0.1 to your hosts file."
 done
 
+echo "[sites] Site(s) runs a self signed cert - you need to accept it in your browser."
+echo "[sites] All *.local sites are available in the linux container."
 echo "[sites] Done."

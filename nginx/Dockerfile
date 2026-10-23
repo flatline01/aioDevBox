@@ -11,7 +11,7 @@
 
 FROM nginx:stable-alpine
 
-RUN apk add --no-cache openssl jq inotify-tools
+RUN apk add --no-cache openssl jq
 
 # Sensible default: refuse unmatched Host headers rather than falling
 # back to serving something unintended.
