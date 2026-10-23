@@ -40,6 +40,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mongo:
+        condition: service_healthy
     ports:
       - "${LINUX_NOVNC_PORT}:6901"   # browser: http://localhost:${LINUX_NOVNC_PORT}/vnc.html
       - "${LINUX_VNC_PORT}:5901"     # native VNC client
@@ -53,7 +55,8 @@ services:
       - ${SITES_JSON_PATH}:/sites.json:ro
       - ${LOGS_PATH}:/var/log/devstack
       - ${DATA_PATH}:/data
-      - ./linux/php/php.ini:/etc/php/8.1/php.ini
+      - ./linux/php/php.ini:/etc/php/8.1/fpm/php.ini
+      - ./linux/php/www.conf:/etc/php/8.1/fpm/pool.d/www.conf
       # Persist desktop/app settings across container recreation. Scoped
       # to these specific dirs (not all of /home/${DESKTOP_USER}) so that
       # ~/.vnc/xstartup and other image-managed files always come fresh
@@ -66,7 +69,7 @@ services:
       # from the host — see linux/persist/.
       - ./linux/persist/bashrc:/home/${DESKTOP_USER}/.bashrc
       - ./linux/persist/Desktop:/home/${DESKTOP_USER}/Desktop
-    shm_size: "2gb"
+    shm_size: "4gb"
     restart: unless-stopped
     # --------------------------------------------------------------
     # GPU acceleration (optional).
@@ -101,6 +104,8 @@ services:
       linux:
         condition: service_started
       mysql:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     ports:
       - "${NGINX_HTTP_PORT}:80"
@@ -165,6 +170,61 @@ services:
     ports:
       - "${PHPMYADMIN_PORT}:80"
     restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: ${COMPOSE_PROJECT_NAME}_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+      # Read by mongo/init/10-create-app-user.js (first init only).
+      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+    networks:
+      - devstack
+    ports:
+      - "${MONGO_PORT}:27017"
+    volumes:
+      # Named volumes (not a bind mount): MongoDB's WiredTiger engine is
+      # unreliable on Windows/Docker Desktop bind mounts. These still
+      # persist across restarts and container recreation.
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      # *.js / *.sh here run once, on first init of an empty mongo_data.
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Authenticates as the app user, which only exists once the init
+      # script has finished. A bare ping would pass against the temporary
+      # init-time server and release dependents too early.
+      test:
+        - CMD-SHELL
+        - mongosh --quiet -u "$$MONGO_USER" -p "$$MONGO_PASSWORD" --authenticationDatabase "$$MONGO_DATABASE" "$$MONGO_DATABASE" --eval "db.runCommand({ping:1}).ok" | grep -q 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+ 
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ${COMPOSE_PROJECT_NAME}_mongo_express
+    environment:
+      # Connects as root so every database is browsable; use the app
+      # user's URI instead to limit it to one database.
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH: "false"
+    networks:
+      - devstack
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "${MONGO_EXPRESS_PORT}:8081"
+    restart: unless-stopped
+
 
   # ------------------------------------------------------------------
   # Future services — folders are provisioned (./node). Uncomment and
