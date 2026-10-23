@@ -12,3 +12,4 @@ sites/*
 .env
 nginx/ssl/*
 linux/persist/Desktop/*
+nginx/conf.d/*
