@@ -5,7 +5,32 @@
       "directory": "/var/www/my-site",
       "tld": "mysite.local",
       "repo":"",
-      "type":"single"
+      "framework":"wordpress",
+      "type": "singlesite"
+    },
+    "composerwp":{
+      "name":"Composer WP",
+      "directory":"/var/www/composerwp",
+      "tld":"composerwp.local",
+      "repo":"",
+      "framework":"wordpress",
+      "type": "singlesite"
+    },
+    "composerwp4":{
+      "name":"Composer WP4",
+      "directory":"/var/www/composerwp4",
+      "tld":"composerwp4.local",
+      "repo":"",
+      "framework":"wordpress",
+      "type": "singlesite"
+    },
+    "laraveldemo":{
+      "name":"Laravel demo",
+      "directory":"/var/www/laraveldemo",
+      "tld":"laraveldemo.local",
+      "repo":"",
+      "framework":"laravel",
+      "webroot":"/public"
     }
   }
 }
