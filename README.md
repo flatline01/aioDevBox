@@ -1,16 +1,15 @@
 # devstack
 
 A docker-compose based dev environment. Starting point: a single `linux`
-desktop machine, with the stack structured so `mysql`, `nginx`, `node`, and
-`redis` can be added incrementally.
+desktop machine, with the stack structured so new services can be added incrementally.
 
 ## Layout
 
 ```
 .
-├── docker-compose.yml   # network + services
-├── .env                 # shared config for every container
-├── mysql/                # (empty for now — future MySQL data dir)
+├── docker-compose.yml    # network + services
+├── .env                  # shared config for every container
+├── mysql/                # MySql database files
 ├── data/                 # general persistent data, shared across services
 ├── logs/                 # centralized logs, shared across services
 ├── linux/                # the desktop machine
@@ -18,12 +17,19 @@ desktop machine, with the stack structured so `mysql`, `nginx`, `node`, and
 │   ├── entrypoint.sh     # runs startup.sh once, then launches supervisord
 │   ├── startup.sh        # YOUR one-time provisioning script
 │   ├── supervisord.conf  # manages Xvnc + noVNC
-│   └── xstartup           # launches XFCE inside the VNC session
-├── nginx/                # (empty for now)
+│   ├── xstartup          # launches XFCE inside the VNC session
+│   ├── scripts           # misc bash scripts for site admin
+│   ├── php               # custom php ini and confs
+│   └── persist           # linux user settings, persists between docker builds
+│       └── Desktop       # linux desktop, shared with host
+├── nginx/                # Webserver and SSL termination
+├── mongo/                # Mongo server
 ├── node/                 # (empty for now)
 ├── redis/                # (empty for now)
 └── sites/                # bind-mounted into linux at /var/www
 ```
+
+Project also has a phpMyAdmin and Mongo-express admin machines available.
 
 ## Quick start
 
