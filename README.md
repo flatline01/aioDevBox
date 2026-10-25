@@ -11,22 +11,27 @@ desktop machine, with the stack structured so new services can be added incremen
 ├── .env                  # shared config for every container
 ├── mysql/                # MySql database files
 ├── data/                 # general persistent data, shared across services
-├── logs/                 # centralized logs, shared across services
+├── docs/                 # documentation
 ├── linux/                # the desktop machine
-│   ├── Dockerfile
+│   ├── Dockerfile        # sets up the linux machine, installs required packages
 │   ├── entrypoint.sh     # runs startup.sh once, then launches supervisord
 │   ├── startup.sh        # YOUR one-time provisioning script
 │   ├── supervisord.conf  # manages Xvnc + noVNC
+│   ├── dns-sync          # manages *.local url resolutions inside the box
 │   ├── xstartup          # launches XFCE inside the VNC session
 │   ├── scripts           # misc bash scripts for site admin
 │   ├── php               # custom php ini and confs
 │   └── persist           # linux user settings, persists between docker builds
 │       └── Desktop       # linux desktop, shared with host
-├── nginx/                # Webserver and SSL termination
+├── logs/                 # centralized logs, shared across services
 ├── mongo/                # Mongo server
+├── mysql/                # mysql storage 
+├── nginx/                # Webserver, set up, and ssl certs
 ├── node/                 # (empty for now)
 ├── redis/                # (empty for now)
-└── sites/                # bind-mounted into linux at /var/www
+├── sites/                # bind-mounted into linux at /var/www
+└── static/               # images and files for the readme
+
 ```
 
 Project also has a phpMyAdmin and Mongo-express admin machines available. These are available in the desktop at the following addresses:
@@ -38,11 +43,13 @@ Project also has a phpMyAdmin and Mongo-express admin machines available. These 
 ![Desktop](/static/Screenshot_2026-10-24_14-49-35.png)
 
 Currently installed:
-* VSCode
-* Firefox
-* Bruno
+* VSCode (Code IDE)
+* Firefox (Web Browser)
+* Bruno (API testing tool)
 
 ## Quick start
+
+Copy `.env.example` as `.env`. Add keys or change values here.
 
 ```bash
 docker compose up -d --build
@@ -55,7 +62,8 @@ Then connect to the desktop:
 
 The `sites/` folder on your host is mounted at `/var/www/` inside the
 container, so anything you drop there (or that the container writes there)
-is shared with your local filesystem.
+is shared with your local filesystem. This has a few gotchas when sharing with
+a windows WSL host - inotify based watchers will sometimes fail.
 
 ## First-boot provisioning (`startup.sh`)
 
