@@ -29,7 +29,18 @@ desktop machine, with the stack structured so new services can be added incremen
 └── sites/                # bind-mounted into linux at /var/www
 ```
 
-Project also has a phpMyAdmin and Mongo-express admin machines available.
+Project also has a phpMyAdmin and Mongo-express admin machines available. These are available in the desktop at the following addresses:
+* http://phpmyadmin || http://localhost:8081/ (on the host machine)
+
+
+## Linux Desktop
+
+![Desktop](/static/Screenshot_2026-10-24_14-49-35.png)
+
+Currently installed:
+* VSCode
+* Firefox
+* Bruno
 
 ## Quick start
 
@@ -94,8 +105,8 @@ software rendering (llvmpipe) automatically.
 
 ## Adding the other services
 
-`docker-compose.yml` already has commented-out stubs for `mysql`, `redis`,
-`node`, and `nginx` wired to the shared `.env`, the `devstack` network, and
+`docker-compose.yml` already has commented-out stubs for `redis` and
+`node` wired to the shared `.env`, the `devstack` network, and
 the `sites`/`data`/`logs` volumes. Uncomment and flesh out as needed —
-`node/` and `nginx/` will need their own `Dockerfile`s (same pattern as
-`linux/`), while `mysql` and `redis` can run straight off official images.
+`node/`  will need its own `Dockerfile`s (same pattern as
+`linux/`), while `redis` can run straight off official images.
