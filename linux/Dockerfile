@@ -86,6 +86,13 @@ RUN wget -q -O /tmp/chrome.deb \
     && apt-get update && apt-get install -y --no-install-recommends /tmp/chrome.deb \
     && rm -f /tmp/chrome.deb \
     && rm -rf /var/lib/apt/lists/*
+# Chrome's sandbox can't initialise in an unprivileged container, so it
+# exits silently. Bake the flags into every launcher entry.
+RUN sed -i 's#^Exec=/usr/bin/google-chrome-stable#Exec=/usr/bin/google-chrome-stable --no-sandbox --disable-dev-shm-usage#' \
+        /usr/share/applications/google-chrome.desktop \
+    && printf '#!/bin/sh\nexec /usr/bin/google-chrome-stable --no-sandbox --disable-dev-shm-usage "$@"\n' \
+        > /usr/local/bin/google-chrome \
+    && chmod +x /usr/local/bin/google-chrome
 
 # ------------------------------------------------------------------
 # GitHub CLI (gh) — via GitHub's official apt repo. Auth itself is
@@ -196,6 +203,12 @@ RUN ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/node /usr/local/bin/no
     && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npm /usr/local/bin/npm \
     && ln -sf /home/${DESKTOP_USER}/.nvm/versions/node/*/bin/npx /usr/local/bin/npx
 
+# ------------------------------------------------------------------
+# claude set up
+# Once installed, will need to be authorized in the console, and will 
+# need a pro plan or higher.
+# ------------------------------------------------------------------
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # ------------------------------------------------------------------
 # Bruno api tool - https://www.usebruno.com/downloads

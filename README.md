@@ -36,6 +36,7 @@ desktop machine, with the stack structured so new services can be added incremen
 
 Project also has a phpMyAdmin and Mongo-express admin machines available. These are available in the desktop at the following addresses:
 * http://phpmyadmin || http://localhost:8081/ (on the host machine)
+* http://localhost:8082
 
 
 ## Linux Desktop
@@ -43,9 +44,12 @@ Project also has a phpMyAdmin and Mongo-express admin machines available. These 
 ![Desktop](/static/Screenshot_2026-10-24_14-49-35.png)
 
 Currently installed:
-* VSCode (Code IDE)
-* Firefox (Web Browser)
-* Bruno (API testing tool)
+* Dev Tools 
+   * VSCode IDE
+   * Bruno - API/Endpoint testing tool
+* Web Browser
+   * FireFox
+   * Chrome
 
 ## Quick start
 
