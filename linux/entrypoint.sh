@@ -36,6 +36,21 @@ done
 mkdir -p "${HOME_DIR}/.vscode/extensions"
 chown "${DESKTOP_USER}:${DESKTOP_USER}" "${HOME_DIR}/.vscode/extensions"
 
+BM=/etc/devstack/bookmarks.json
+if [ -f "$BM" ]; then
+    mkdir -p /etc/opt/chrome/policies/managed /usr/lib/firefox/distribution
+
+    jq '(if .homepage then {HomepageLocation:.homepage,HomepageIsNewTabPage:false,ShowHomeButton:true,RestoreOnStartup:4,RestoreOnStartupURLs:[.homepage]} else {} end)
+        + {BookmarkBarEnabled:true,ManagedBookmarks:([{toplevel_name:"Dev"}]+(.bookmarks//[]))}' \
+        "$BM" > /etc/opt/chrome/policies/managed/devstack.json \
+        || echo "[entrypoint] WARNING: bad JSON in bookmarks.json (Chrome policy skipped)"
+
+    jq '{policies:((if .homepage then {Homepage:{URL:.homepage,StartPage:"homepage"}} else {} end)
+        + {DisplayBookmarksToolbar:"always",Bookmarks:[(.bookmarks//[])[]|{Title:.name,URL:.url,Placement:"toolbar"}]})}' \
+        "$BM" > /usr/lib/firefox/distribution/policies.json \
+        || echo "[entrypoint] WARNING: bad JSON in bookmarks.json (Firefox policy skipped)"
+fi
+
 # ------------------------------------------------------------------
 # GitHub CLI auth (re-applied every boot, in case GH_TOKEN was
 # rotated) — no-op if GH_TOKEN isn't set in .env. Authenticates `gh`

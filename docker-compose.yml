@@ -1,7 +1,7 @@
 ########################################################################
 # devstack — docker-compose.yml
 #
-# Starting point: the "linux" desktop machine only. mysql, nginx, node,
+# Starting point: the "linux" desktop machine only. node,
 # and redis folders are provisioned and stubbed below (commented) so the
 # stack can grow into a full multi-container dev environment without
 # restructuring anything later.
@@ -57,6 +57,7 @@ services:
       - ${DATA_PATH}:/data
       - ./linux/php/php.ini:/etc/php/8.1/fpm/php.ini
       - ./linux/php/www.conf:/etc/php/8.1/fpm/pool.d/www.conf
+      - ./linux/browser/bookmarks.json:/etc/devstack/bookmarks.json:ro
       # Persist desktop/app settings across container recreation. Scoped
       # to these specific dirs (not all of /home/${DESKTOP_USER}) so that
       # ~/.vnc/xstartup and other image-managed files always come fresh

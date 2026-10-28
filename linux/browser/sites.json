@@ -1,0 +1,10 @@
+{
+  "homepage": "https://github.com/flatline01/aioDevBox",
+  "bookmarks": [
+    { "name": "My Site",     "url": "https://mysite.local" },
+    { "name": "Laravel",     "url": "https://laraveldemo.local" },
+    { "name": "phpMyAdmin",  "url": "http://phpmyadmin" },
+    { "name": "Mongo Express", "url": "http://mongo-express:8081" },
+    { "name": "GitHub",      "url": "https://github.com" }
+  ]
+}
