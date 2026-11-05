@@ -52,7 +52,7 @@ Currently installed:
    * Chrome
 
 ## Local LLM
-![Desktop(/static/llm.png)]
+![Desktop](/static/llm.png)]
 
 Open WebUI and command line local LLM usage have been enabled. This uses Qwen open weight models by default. Usage and set up will 
 depend on the local machine's hardware setup. See [LLM readme](llm.md) for details.
