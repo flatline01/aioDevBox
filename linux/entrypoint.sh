@@ -52,6 +52,39 @@ if [ -f "$BM" ]; then
 fi
 
 # ------------------------------------------------------------------
+# Local LLM: regenerate Continue's config from .env every boot, and
+# install the Continue extension once. (Extensions can't be baked into
+# the image: the .vscode named volume hides them.)
+# ------------------------------------------------------------------
+LLM_URL="${LLM_BASE_URL:-http://ollama:11434}"
+CONT_DIR="${HOME_DIR}/.continue"
+mkdir -p "${CONT_DIR}"
+cat > "${CONT_DIR}/config.yaml" <<YAML
+name: Local Ollama
+version: 1.0.0
+schema: v1
+models:
+  - name: Chat - ${LLM_CHAT_MODEL:-qwen2.5-coder:14b}
+    provider: ollama
+    model: ${LLM_CHAT_MODEL:-qwen2.5-coder:14b}
+    apiBase: ${LLM_URL}
+    roles: [chat, edit, apply]
+  - name: Autocomplete - ${LLM_AUTOCOMPLETE_MODEL:-qwen2.5-coder:1.5b}
+    provider: ollama
+    model: ${LLM_AUTOCOMPLETE_MODEL:-qwen2.5-coder:1.5b}
+    apiBase: ${LLM_URL}
+    roles: [autocomplete]
+YAML
+chown -R "${DESKTOP_USER}:${DESKTOP_USER}" "${CONT_DIR}"
+
+(
+    if ! su - "${DESKTOP_USER}" -c "code --list-extensions 2>/dev/null" | grep -qi '^continue\.continue$'; then
+        su - "${DESKTOP_USER}" -c "code --install-extension Continue.continue" \
+            || echo "[entrypoint] WARNING: could not install the Continue extension (offline?)"
+    fi
+) > /var/log/devstack/continue-install.log 2>&1 &
+
+# ------------------------------------------------------------------
 # GitHub CLI auth (re-applied every boot, in case GH_TOKEN was
 # rotated) — no-op if GH_TOKEN isn't set in .env. Authenticates `gh`
 # itself, then `gh auth setup-git` wires git's own push/pull over

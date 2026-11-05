@@ -41,6 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
 
+RUN git config --global init.defaultBranch main
+
 # Sanity check: fail the build loudly here (not three layers later) if the
 # tigervnc package layout ever changes and these binaries move.
 RUN test -x /usr/bin/tigervncserver && test -x /usr/bin/tigervncpasswd

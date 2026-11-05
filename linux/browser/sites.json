@@ -1,6 +1,7 @@
 {
   "homepage": "https://github.com/flatline01/aioDevBox",
   "bookmarks": [
+    { "name": "Open WebUI",     "url": "http://open-webui:8080" },
     { "name": "My Site",     "url": "https://mysite.local" },
     { "name": "Laravel",     "url": "https://laraveldemo.local" },
     { "name": "phpMyAdmin",  "url": "http://phpmyadmin" },

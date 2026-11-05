@@ -6,6 +6,36 @@
 # stack can grow into a full multi-container dev environment without
 # restructuring anything later.
 ########################################################################
+x-ollama-env: &ollama-env
+  OLLAMA_HOST: 0.0.0.0:11434
+  OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+  OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
+  OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+  OLLAMA_FLASH_ATTENTION: ${OLLAMA_FLASH_ATTENTION:-1}
+  OLLAMA_KV_CACHE_TYPE: ${OLLAMA_KV_CACHE_TYPE:-q8_0}
+  OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+
+x-ollama-base: &ollama-base
+  image: ollama/ollama:${OLLAMA_TAG:-latest}
+  container_name: ${COMPOSE_PROJECT_NAME}_ollama
+  environment: *ollama-env
+  networks:
+    devstack:
+      aliases:
+        - ollama
+  ports:
+    # Loopback only: the Ollama API has no authentication.
+    - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+  volumes:
+    - ollama_models:/root/.ollama
+  healthcheck:
+    test: ["CMD", "ollama", "list"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 20s
+  restart: unless-stopped
+
 
 networks:
   devstack:
@@ -19,6 +49,10 @@ volumes:
   linux_config:
   linux_mozilla:
   linux_vscode:
+  mongo_data:
+  mongo_config:
+  ollama_models:
+  open_webui_data:
 
 services:
 
@@ -149,6 +183,75 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # Exactly one Ollama variant runs, chosen by COMPOSE_PROFILES in .env
+  # (nvidia | amd | cpu). All share the alias "ollama". Host mode = no profile.
+  ollama-nvidia:
+    <<: *ollama-base
+    profiles: ["nvidia"]
+    environment:
+      <<: *ollama-env
+      CUDA_VISIBLE_DEVICES: ${LLM_GPU_IDS:-0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ollama-amd:
+    <<: *ollama-base
+    image: ollama/ollama:${OLLAMA_ROCM_TAG:-rocm}
+    profiles: ["amd"]
+    environment:
+      <<: *ollama-env
+      HIP_VISIBLE_DEVICES: ${LLM_GPU_IDS:-0}
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+
+  ollama-cpu:
+    <<: *ollama-base
+    profiles: ["cpu"]
+
+  # One-shot: waits for Ollama, pulls the models named in .env, exits.
+  ollama-pull:
+    image: ollama/ollama:${OLLAMA_TAG:-latest}
+    container_name: ${COMPOSE_PROJECT_NAME}_ollama_pull
+    profiles: ["nvidia", "amd", "cpu"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      LLM_MODELS: ${LLM_CHAT_MODEL},${LLM_AUTOCOMPLETE_MODEL}
+    networks:
+      - devstack
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do echo "waiting for ollama..."; sleep 3; done
+        for m in $$(echo "$$LLM_MODELS" | tr ',' ' '); do
+          echo "== pulling $$m"; ollama pull "$$m" || echo "WARNING: pull failed for $$m"
+        done
+        echo "== models ready"; ollama list
+    restart: "no"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:${OPEN_WEBUI_TAG:-main}
+    container_name: ${COMPOSE_PROJECT_NAME}_open_webui
+    environment:
+      OLLAMA_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434}
+      WEBUI_AUTH: ${OPEN_WEBUI_AUTH:-true}
+    networks:
+      - devstack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # for host mode
+    ports:
+      - "${OPEN_WEBUI_PORT:-8083}:8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    restart: unless-stopped
+
   # ------------------------------------------------------------------
   # phpmyadmin — web UI for the mysql container. Official image, its own
   # container; connects over the devstack network. Log in at
@@ -196,16 +299,14 @@ services:
       # *.js / *.sh here run once, on first init of an empty mongo_data.
       - ./mongo/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # Authenticates as the app user, which only exists once the init
-      # script has finished. A bare ping would pass against the temporary
-      # init-time server and release dependents too early.
       test:
         - CMD-SHELL
         - mongosh --quiet -u "$$MONGO_USER" -p "$$MONGO_PASSWORD" --authenticationDatabase "$$MONGO_DATABASE" "$$MONGO_DATABASE" --eval "db.runCommand({ping:1}).ok" | grep -q 1
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      interval: 60s        # steady state: one connection a minute
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      start_interval: 5s   # fast checks while starting, so dependents aren't delayed
     restart: unless-stopped
  
   mongo-express:
