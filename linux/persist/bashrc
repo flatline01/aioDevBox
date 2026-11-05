@@ -67,3 +67,12 @@ export NVM_DIR="$HOME/.nvm"
 export WATCHPACK_POLLING=true
 
 export PATH="$HOME/.local/bin:$PATH"
+
+llm() {
+  local model="${LLM_CHAT_MODEL:-qwen2.5-coder:14b}" prompt
+  if [ -t 0 ]; then prompt="$*"; else prompt="$*"$'\n\n'"$(cat)"; fi
+  jq -n --arg m "$model" --arg p "$prompt" '{model:$m,prompt:$p,stream:true}' \
+    | curl -sN "${LLM_BASE_URL:-http://ollama:11434}/api/generate" -d @- \
+    | jq --unbuffered -rj '.response // empty'
+  echo
+}D

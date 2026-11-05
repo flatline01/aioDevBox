@@ -51,6 +51,19 @@ Currently installed:
    * FireFox
    * Chrome
 
+## Local LLM
+![Desktop(/static/llm.png)]
+
+Open WebUI and command line local LLM usage have been enabled. This uses Qwen open weight models by default. Usage and set up will 
+depend on the local machine's hardware setup. See [LLM readme](llm.md) for details.
+
+Claude CLI is also installed, but will require a subscription.
+
+### Continue CLI
+![Cli](/static/continuecli.png)
+
+Continue CLI has been installed and connected to the Local.
+
 ## Quick start
 
 Copy `.env.example` as `.env`. Add keys or change values here.

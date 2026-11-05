@@ -253,6 +253,9 @@ COPY dns-sync.sh /opt/dns-sync.sh
 RUN sed -i 's/\r$//' /opt/startup.sh /opt/entrypoint.sh /opt/dns-sync.sh \
     && chmod +x /opt/startup.sh /opt/entrypoint.sh /opt/dns-sync.sh
 
+# add Continue cli https://docs.continue.dev/cli/quickstart
+RUN npm i -g @continuedev/cli
+
 # ------------------------------------------------------------------
 # Final ownership pass. ENV HOME=/home/${DESKTOP_USER} is set globally
 # near the top of this file, which means every RUN step above that
